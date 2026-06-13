@@ -6,6 +6,53 @@ function formatNumber(n) {
 }
 
 /**
+ * Build a nicely formatted vault inventory embed with categorized items
+ */
+function buildVaultEmbed(title = '📦 Brankas Inventory') {
+    const vault = db.getVault();
+    const items = Object.entries(vault);
+
+    const embed = new EmbedBuilder()
+        .setTitle(title)
+        .setColor(0x2b2d31)
+        .setTimestamp()
+        .setFooter({ text: 'Brankas System' });
+
+    if (items.length === 0) {
+        embed.setDescription('> Vault kosong.');
+        return embed;
+    }
+
+    // Split items into columns (2 columns for better readability)
+    const half = Math.ceil(items.length / 2);
+    const col1 = items.slice(0, half);
+    const col2 = items.slice(half);
+
+    const formatColumn = (entries) => {
+        return entries.map(([name, qty]) => {
+            const icon = qty === 0 ? '🔴' : '🟢';
+            return `${icon} **${name}**\n┗ \`${formatNumber(qty)}\``;
+        }).join('\n');
+    };
+
+    embed.addFields(
+        { name: '━━━━━━━━━━━━━━━', value: formatColumn(col1), inline: true },
+        { name: '━━━━━━━━━━━━━━━', value: col2.length > 0 ? formatColumn(col2) : '\u200b', inline: true }
+    );
+
+    // Summary bar
+    const totalUnits = items.reduce((sum, [, q]) => sum + q, 0);
+    const emptyCount = items.filter(([, q]) => q === 0).length;
+    embed.addFields({
+        name: '📊 Ringkasan',
+        value: `\`\`\`\nJenis Barang : ${items.length}\nTotal Unit   : ${formatNumber(totalUnits)}\nStok Kosong  : ${emptyCount}\n\`\`\``,
+        inline: false
+    });
+
+    return embed;
+}
+
+/**
  * Send vault info embed to the configured vaultInfoChannelId
  */
 async function sendVaultInfo(client) {
@@ -15,28 +62,7 @@ async function sendVaultInfo(client) {
         const channelId = config.vaultInfoChannelId;
         if (!channelId) return;
 
-        const vault = db.getVault();
-        const items = Object.entries(vault);
-
-        const embed = new EmbedBuilder()
-            .setTitle('📦 Brankas Inventory (Auto-Update)')
-            .setColor(0x2b2d31)
-            .setTimestamp()
-            .setFooter({ text: 'Auto-updated after transaction' });
-
-        if (items.length === 0) {
-            embed.setDescription('Vault kosong.');
-        } else {
-            const lines = items.map(([name, qty]) => `**${name}** — ${formatNumber(qty)}`);
-            embed.setDescription(lines.join('\n'));
-        }
-
-        const totalUnits = items.reduce((sum, [, q]) => sum + q, 0);
-        embed.addFields({
-            name: 'Total',
-            value: `${items.length} jenis barang | ${formatNumber(totalUnits)} total unit`,
-            inline: false
-        });
+        const embed = buildVaultEmbed('📦 Brankas Inventory (Auto-Update)');
 
         const channel = await client.channels.fetch(channelId);
         if (channel) {
@@ -51,16 +77,6 @@ async function sendVaultInfo(client) {
 /**
  * Build a paginated item select menu.
  * Discord StringSelectMenu supports max 25 options.
- * This function creates the select menu for a given page plus pagination buttons.
- * 
- * @param {string[]} allItems - All item names
- * @param {number} page - Current page (0-indexed)
- * @param {string} sessionId - Session ID prefix for custom IDs
- * @param {string} selectId - The select menu's action name (e.g., 'item')
- * @param {string|null} selectedItem - Currently selected item
- * @param {string} placeholder - Placeholder text
- * @param {function} labelFn - Optional function to generate label from item name
- * @returns {{ row: ActionRowBuilder, paginationRow: ActionRowBuilder|null, totalPages: number }}
  */
 function buildPaginatedItemSelect(allItems, page, sessionId, selectId, selectedItem, placeholder, labelFn) {
     const PAGE_SIZE = 25;
@@ -101,4 +117,4 @@ function buildPaginatedItemSelect(allItems, page, sessionId, selectId, selectedI
     return { row, paginationRow, totalPages, currentPage };
 }
 
-module.exports = { sendVaultInfo, buildPaginatedItemSelect, formatNumber };
+module.exports = { sendVaultInfo, buildVaultEmbed, buildPaginatedItemSelect, formatNumber };

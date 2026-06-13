@@ -32,7 +32,7 @@ module.exports = {
         }
 
         const sessionId = `deposit_${interaction.user.id}_${Date.now()}`;
-        const state = { item: null, member: null, responsible: null, amount: null, itemPage: 0 };
+        const state = { item: null, member: null, responsible: null, amount: null, note: null, itemPage: 0 };
 
         const buildEmbed = () => {
             return new EmbedBuilder()
@@ -43,7 +43,8 @@ module.exports = {
                     { name: 'Item', value: state.item || '_Belum dipilih_', inline: true },
                     { name: 'Member', value: state.member || '_Belum dipilih_', inline: true },
                     { name: 'Penanggung Jawab', value: state.responsible || '_Belum dipilih_', inline: true },
-                    { name: 'Jumlah', value: state.amount ? formatNumber(state.amount) : '_Belum diisi_', inline: true }
+                    { name: 'Jumlah', value: state.amount ? formatNumber(state.amount) : '_Belum diisi_', inline: true },
+                    { name: 'Catatan', value: state.note || '_Tidak ada_', inline: true }
                 )
                 .setTimestamp()
                 .setFooter({ text: 'Isi semua field lalu tekan Submit' });
@@ -93,6 +94,10 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId(`${sessionId}_amount`)
                         .setLabel(state.amount ? `Jumlah: ${formatNumber(state.amount)}` : 'Set Jumlah')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId(`${sessionId}_note`)
+                        .setLabel(state.note ? '📝 Edit Catatan' : '📝 Catatan (Opsional)')
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`${sessionId}_submit`)
@@ -165,6 +170,31 @@ module.exports = {
                 } catch {
                     // modal timeout
                 }
+            } else if (action === 'note') {
+                const modal = new ModalBuilder()
+                    .setCustomId(`${sessionId}_note_modal`)
+                    .setTitle('Catatan Deposit')
+                    .addComponents(
+                        new ActionRowBuilder().addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('note_input')
+                                .setLabel('Tambahkan catatan (opsional)')
+                                .setStyle(TextInputStyle.Paragraph)
+                                .setPlaceholder('Contoh: Hasil farming malam')
+                                .setRequired(false)
+                                .setMaxLength(200)
+                        )
+                    );
+                await i.showModal(modal);
+
+                try {
+                    const modalResponse = await i.awaitModalSubmit({ time: 60_000 });
+                    const noteVal = modalResponse.fields.getTextInputValue('note_input').trim();
+                    state.note = noteVal || null;
+                    await modalResponse.update({ embeds: [buildEmbed()], components: buildComponents() });
+                } catch {
+                    // modal timeout
+                }
             } else if (action === 'submit') {
                 if (!(state.item && state.member && state.responsible && state.amount)) {
                     await i.reply({ content: 'Lengkapi semua field dulu!', flags: MessageFlags.Ephemeral });
@@ -194,6 +224,10 @@ module.exports = {
                     .setImage(attachment.url)
                     .setTimestamp()
                     .setFooter({ text: `Transaction #${tx.id}` });
+
+                if (state.note) {
+                    successEmbed.addFields({ name: '📝 Catatan', value: state.note, inline: false });
+                }
 
                 const undoRow = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
