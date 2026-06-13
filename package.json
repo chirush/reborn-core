@@ -1,0 +1,23 @@
+{
+  "name": "fivem-vault-bot",
+  "version": "1.0.0",
+  "description": "FiveM Gang Safe Vault Discord Bot",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node src/deploy-commands.js",
+    "build": "pkg src/index.js --targets node18-win-x64 --output dist/fivem-vault-bot.exe && pkg src/deploy-commands.js --targets node18-win-x64 --output dist/deploy-commands.exe"
+  },
+  "pkg": {
+    "targets": ["node18-win-x64"],
+    "outputPath": "dist"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "exceljs": "^4.4.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  }
+}
